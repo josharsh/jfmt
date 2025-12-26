@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>jfmt - JSON Formatter</title>
+  <meta name="description" content="Fast, beautiful JSON formatting. Paste, format, copy. No ads, no tracking.">
+  <meta name="theme-color" content="#0d1117">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>{ }</text></svg>">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d1117;
+      --bg-secondary: #161b22;
+      --bg-tertiary: #21262d;
+      --border: #30363d;
+      --text: #e6edf3;
+      --text-muted: #7d8590;
+      --accent: #58a6ff;
+      --green: #7ee787;
+      --orange: #ffa657;
+      --purple: #d2a8ff;
+      --red: #ff7b72;
+      --key: #79c0ff;
+      --string: #a5d6ff;
+      --number: #ffa657;
+      --boolean: #ff7b72;
+      --null: #7d8590;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      padding: 1rem 1.5rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .logo {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--text);
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .logo span {
+      color: var(--accent);
+    }
+
+    .controls {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.875rem;
+      transition: all 0.15s;
+      display: flex;
+      align-items: center;
+      gap: 0.375rem;
+    }
+
+    .btn:hover {
+      background: var(--border);
+      border-color: var(--text-muted);
+    }
+
+    .btn.primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #0d1117;
+      font-weight: 600;
+    }
+
+    .btn.primary:hover {
+      background: #79b8ff;
+      border-color: #79b8ff;
+    }
+
+    .btn.success {
+      background: var(--green);
+      border-color: var(--green);
+      color: #0d1117;
+    }
+
+    .toggle {
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 0.375rem;
+      cursor: pointer;
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      padding: 0.5rem 0.75rem;
+      border-radius: 6px;
+      transition: color 0.15s;
+    }
+
+    .toggle:hover {
+      color: var(--text);
+    }
+
+    .toggle input {
+      position: absolute;
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .toggle .check {
+      width: 16px;
+      height: 16px;
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s;
+    }
+
+    .toggle input:checked + .check {
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+
+    .toggle input:checked + .check::after {
+      content: '✓';
+      color: #0d1117;
+      font-size: 11px;
+      font-weight: bold;
+    }
+
+    main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1px;
+      background: var(--border);
+    }
+
+    @media (max-width: 768px) {
+      main {
+        grid-template-columns: 1fr;
+        grid-template-rows: 1fr 1fr;
+      }
+    }
+
+    .panel {
+      background: var(--bg);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .panel-header {
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+    }
+
+    .panel-header .actions {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .panel-header button {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 0.25rem;
+      border-radius: 4px;
+      transition: all 0.15s;
+      font-size: 0.75rem;
+    }
+
+    .panel-header button:hover {
+      color: var(--text);
+      background: var(--bg-tertiary);
+    }
+
+    .editor {
+      flex: 1;
+      position: relative;
+    }
+
+    textarea {
+      width: 100%;
+      height: 100%;
+      background: transparent;
+      border: none;
+      color: var(--text);
+      font-family: 'SF Mono', 'Fira Code', 'JetBrains Mono', Consolas, monospace;
+      font-size: 0.875rem;
+      line-height: 1.6;
+      padding: 1rem;
+      resize: none;
+      outline: none;
+    }
+
+    textarea::placeholder {
+      color: var(--text-muted);
+    }
+
+    .output {
+      flex: 1;
+      overflow: auto;
+      padding: 1rem;
+      font-family: 'SF Mono', 'Fira Code', 'JetBrains Mono', Consolas, monospace;
+      font-size: 0.875rem;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .output .key { color: var(--key); }
+    .output .string { color: var(--string); }
+    .output .number { color: var(--number); }
+    .output .boolean { color: var(--boolean); }
+    .output .null { color: var(--null); }
+    .output .brace { color: var(--text-muted); }
+
+    .error {
+      color: var(--red);
+      padding: 1rem;
+      font-family: 'SF Mono', 'Fira Code', 'JetBrains Mono', Consolas, monospace;
+      font-size: 0.875rem;
+    }
+
+    .error-line {
+      margin-top: 0.5rem;
+      padding: 0.5rem;
+      background: var(--bg-secondary);
+      border-radius: 4px;
+      border-left: 3px solid var(--red);
+    }
+
+    .drop-zone {
+      position: fixed;
+      inset: 0;
+      background: rgba(88, 166, 255, 0.1);
+      border: 3px dashed var(--accent);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      font-size: 1.5rem;
+      color: var(--accent);
+    }
+
+    .drop-zone.active {
+      display: flex;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 2rem;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      padding: 0.75rem 1.25rem;
+      border-radius: 8px;
+      font-size: 0.875rem;
+      opacity: 0;
+      transition: all 0.3s ease;
+      z-index: 1000;
+    }
+
+    .toast.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+
+    .toast.success {
+      border-color: var(--green);
+      color: var(--green);
+    }
+
+    .keyboard-hint {
+      color: var(--text-muted);
+      font-size: 0.75rem;
+      padding: 0.125rem 0.375rem;
+      background: var(--bg-tertiary);
+      border-radius: 4px;
+      margin-left: 0.5rem;
+    }
+
+    footer {
+      padding: 1rem;
+      border-top: 1px solid var(--border);
+      text-align: center;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    footer a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    footer a:hover {
+      text-decoration: underline;
+    }
+
+    .stats {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <a href="/" class="logo"><span>{</span>jfmt<span>}</span></a>
+    <div class="controls">
+      <label class="toggle">
+        <input type="checkbox" id="autoFix">
+        <span class="check"></span>
+        Auto-fix
+      </label>
+      <label class="toggle">
+        <input type="checkbox" id="sortKeys">
+        <span class="check"></span>
+        Sort keys
+      </label>
+      <label class="toggle">
+        <input type="checkbox" id="compact">
+        <span class="check"></span>
+        Compact
+      </label>
+      <button class="btn" id="clearBtn">Clear</button>
+      <button class="btn primary" id="formatBtn">
+        Format
+        <span class="keyboard-hint">⌘↵</span>
+      </button>
+    </div>
+  </header>
+
+  <main>
+    <div class="panel">
+      <div class="panel-header">
+        <span>Input</span>
+        <div class="actions">
+          <button id="pasteBtn" title="Paste from clipboard">Paste</button>
+          <button id="sampleBtn" title="Load sample JSON">Sample</button>
+        </div>
+      </div>
+      <div class="editor">
+        <textarea id="input" placeholder="Paste JSON here, drop a file, or click 'Sample'..." spellcheck="false"></textarea>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-header">
+        <span>Output <span class="stats" id="stats"></span></span>
+        <div class="actions">
+          <button id="copyBtn" title="Copy to clipboard">Copy</button>
+          <button id="downloadBtn" title="Download as file">Download</button>
+          <button id="shareBtn" title="Copy shareable link">Share</button>
+        </div>
+      </div>
+      <div class="output" id="output"></div>
+    </div>
+  </main>
+
+  <div class="drop-zone" id="dropZone">Drop JSON file here</div>
+  <div class="toast" id="toast"></div>
+
+  <footer>
+    <a href="https://github.com/josharsh/jfmt">GitHub</a> ·
+    Install CLI: <code>brew install josharsh/tap/jfmt</code> ·
+    No tracking. No ads. Just JSON.
+  </footer>
+
+  <script>
+    const input = document.getElementById('input');
+    const output = document.getElementById('output');
+    const stats = document.getElementById('stats');
+    const toast = document.getElementById('toast');
+    const dropZone = document.getElementById('dropZone');
+
+    // Options
+    const autoFix = document.getElementById('autoFix');
+    const sortKeys = document.getElementById('sortKeys');
+    const compact = document.getElementById('compact');
+
+    // Load from URL hash
+    if (window.location.hash) {
+      try {
+        const decoded = decodeURIComponent(window.location.hash.slice(1));
+        input.value = decoded;
+        format();
+      } catch (e) {}
+    }
+
+    // Format JSON
+    function format() {
+      let text = input.value.trim();
+      if (!text) {
+        output.innerHTML = '<span style="color: var(--text-muted)">Formatted JSON will appear here...</span>';
+        stats.textContent = '';
+        return;
+      }
+
+      // Auto-fix common issues
+      if (autoFix.checked) {
+        text = text
+          .replace(/,(\s*[}\]])/g, '$1')  // trailing commas
+          .replace(/'([^']*)'(\s*:)/g, '"$1"$2')  // single quotes in keys
+          .replace(/:\s*'([^']*)'/g, ': "$1"');  // single quotes in values
+      }
+
+      try {
+        let data = JSON.parse(text);
+
+        // Sort keys recursively
+        if (sortKeys.checked) {
+          data = sortKeysRecursive(data);
+        }
+
+        const indent = compact.checked ? 0 : 2;
+        const formatted = JSON.stringify(data, null, indent);
+
+        // Syntax highlight
+        output.innerHTML = highlight(formatted);
+
+        // Stats
+        const size = new Blob([formatted]).size;
+        const sizeStr = size > 1024 ? (size / 1024).toFixed(1) + ' KB' : size + ' B';
+        stats.textContent = `(${sizeStr})`;
+
+      } catch (e) {
+        const match = e.message.match(/position (\d+)/);
+        let errorHtml = `<span class="error">Error: ${escapeHtml(e.message)}</span>`;
+
+        if (match) {
+          const pos = parseInt(match[1]);
+          const lines = text.substring(0, pos).split('\n');
+          const line = lines.length;
+          const col = lines[lines.length - 1].length + 1;
+          errorHtml = `<span class="error">Error at line ${line}, column ${col}: ${escapeHtml(e.message.replace(/position \d+/, '').trim())}`;
+
+          const errorLine = text.split('\n')[line - 1];
+          if (errorLine) {
+            errorHtml += `<div class="error-line">${escapeHtml(errorLine)}\n${' '.repeat(Math.max(0, col - 1))}^</div>`;
+          }
+          errorHtml += '</span>';
+        }
+
+        output.innerHTML = errorHtml;
+        stats.textContent = '';
+      }
+    }
+
+    function sortKeysRecursive(obj) {
+      if (Array.isArray(obj)) {
+        return obj.map(sortKeysRecursive);
+      }
+      if (obj !== null && typeof obj === 'object') {
+        return Object.keys(obj).sort().reduce((acc, key) => {
+          acc[key] = sortKeysRecursive(obj[key]);
+          return acc;
+        }, {});
+      }
+      return obj;
+    }
+
+    function highlight(json) {
+      return json.replace(
+        /("(?:\\u[\da-fA-F]{4}|\\[^u]|[^\\"])*")(\s*:)?|(\b(?:true|false|null)\b)|(-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)|([{}\[\],:])/g,
+        (match, str, colon, bool, num, brace) => {
+          if (str) {
+            if (colon) {
+              return `<span class="key">${escapeHtml(str)}</span>:`;
+            }
+            return `<span class="string">${escapeHtml(str)}</span>`;
+          }
+          if (bool) {
+            return `<span class="boolean">${bool}</span>`;
+          }
+          if (num) {
+            return `<span class="number">${num}</span>`;
+          }
+          if (brace) {
+            return `<span class="brace">${brace}</span>`;
+          }
+          return match;
+        }
+      );
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    function showToast(message, type = '') {
+      toast.textContent = message;
+      toast.className = 'toast show ' + type;
+      setTimeout(() => toast.className = 'toast', 2000);
+    }
+
+    // Event listeners
+    input.addEventListener('input', () => {
+      format();
+      history.replaceState(null, '', window.location.pathname);
+    });
+
+    [autoFix, sortKeys, compact].forEach(el => {
+      el.addEventListener('change', format);
+    });
+
+    document.getElementById('formatBtn').addEventListener('click', format);
+
+    document.getElementById('clearBtn').addEventListener('click', () => {
+      input.value = '';
+      format();
+      history.replaceState(null, '', window.location.pathname);
+    });
+
+    document.getElementById('pasteBtn').addEventListener('click', async () => {
+      try {
+        const text = await navigator.clipboard.readText();
+        input.value = text;
+        format();
+        showToast('Pasted from clipboard', 'success');
+      } catch (e) {
+        showToast('Could not access clipboard');
+      }
+    });
+
+    document.getElementById('copyBtn').addEventListener('click', async () => {
+      const text = output.textContent;
+      if (!text || text.startsWith('Error') || text.startsWith('Formatted')) {
+        showToast('Nothing to copy');
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(text);
+        showToast('Copied to clipboard', 'success');
+      } catch (e) {
+        showToast('Could not copy');
+      }
+    });
+
+    document.getElementById('downloadBtn').addEventListener('click', () => {
+      const text = output.textContent;
+      if (!text || text.startsWith('Error') || text.startsWith('Formatted')) {
+        showToast('Nothing to download');
+        return;
+      }
+      const blob = new Blob([text], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'formatted.json';
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('Downloaded!', 'success');
+    });
+
+    document.getElementById('shareBtn').addEventListener('click', async () => {
+      if (!input.value.trim()) {
+        showToast('Nothing to share');
+        return;
+      }
+      const url = window.location.origin + window.location.pathname + '#' + encodeURIComponent(input.value);
+      try {
+        await navigator.clipboard.writeText(url);
+        showToast('Link copied to clipboard', 'success');
+      } catch (e) {
+        showToast('Could not copy link');
+      }
+    });
+
+    document.getElementById('sampleBtn').addEventListener('click', () => {
+      input.value = JSON.stringify({
+        name: "jfmt",
+        version: "1.0.0",
+        description: "Fast JSON formatter",
+        features: ["color output", "clipboard support", "auto-fix"],
+        author: { name: "josharsh", github: "https://github.com/josharsh" },
+        isAwesome: true,
+        downloads: 42000
+      });
+      format();
+    });
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+        e.preventDefault();
+        format();
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        input.value = '';
+        format();
+        input.focus();
+      }
+    });
+
+    // Drag and drop
+    ['dragenter', 'dragover'].forEach(event => {
+      document.addEventListener(event, (e) => {
+        e.preventDefault();
+        dropZone.classList.add('active');
+      });
+    });
+
+    ['dragleave', 'drop'].forEach(event => {
+      document.addEventListener(event, (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('active');
+      });
+    });
+
+    document.addEventListener('drop', async (e) => {
+      const file = e.dataTransfer.files[0];
+      if (file) {
+        const text = await file.text();
+        input.value = text;
+        format();
+        showToast(`Loaded ${file.name}`, 'success');
+      }
+    });
+
+    // Initial format
+    format();
+  </script>
+</body>
+</html>
